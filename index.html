@@ -3,10 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Mapa Invisível - Mapeador de Parede AR</title>
+  <title>Mapa Invisível - Anúncios AR</title>
   
-  <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
   <style>
@@ -18,8 +17,9 @@
     #home-screen { align-items: center; justify-content: center; gap: 15px; text-align: center; padding: 20px; }
     .btn { background: #2563eb; color: white; border: none; padding: 16px 24px; border-radius: 12px; font-size: 16px; font-weight: bold; width: 85%; max-width: 320px; cursor: pointer; }
     .btn-secondary { background: #334155; }
+    .btn-world { background: #059669; }
 
-    /* Indicador de Status Topo */
+    /* Banners e Status */
     .status-banner {
       position: fixed; top: 15px; left: 50%; transform: translateX(-50%);
       background: rgba(15, 23, 42, 0.9); color: #38bdf8; padding: 10px 18px;
@@ -27,7 +27,7 @@
       z-index: 1000; border: 1px solid #38bdf8; max-width: 85%;
     }
 
-    /* Formulario e Controles */
+    /* Formulario */
     .ar-controls { 
       position: fixed; bottom: 0; left: 0; width: 100%; 
       background: rgba(15, 23, 42, 0.95); padding: 14px; 
@@ -39,6 +39,9 @@
     .btn-sm { padding: 10px; font-size: 13px; border-radius: 6px; border: none; background: #38bdf8; color: #0f172a; font-weight: bold; cursor: pointer; }
     .btn-disabled { opacity: 0.4; pointer-events: none; }
 
+    /* Modo Mundo / Visualizador */
+    .btn-back-world { position: fixed; top: 15px; left: 15px; z-index: 1000; background: rgba(0,0,0,0.7); color: white; border: none; padding: 8px 16px; border-radius: 20px; font-weight: bold; }
+
     /* Lista de QR Codes */
     #list-screen { padding: 20px; overflow-y: auto; box-sizing: border-box; }
     .ad-card { background: #1e293b; border-radius: 12px; padding: 15px; margin-bottom: 15px; display: flex; flex-direction: column; align-items: center; gap: 10px; border: 1px solid #334155; }
@@ -49,31 +52,32 @@
 
   <!-- TELA 1: HOME -->
   <div id="home-screen" class="screen active">
-    <h1>MAPA INVISÍVEL4</h1>
-    <p>Anúncios Fixos na Parede</p>
+    <h1>MAPA INVISÍVEL5</h1>
+    <p>Plataforma de Anúncios em AR</p>
     <button class="btn" onclick="startCadastrar(event);">1. Cadastrar Anúncio na Parede</button>
-    <button class="btn btn-secondary" onclick="showScreen('list-screen'); loadAds();">2. Ver Anúncios Salvos</button>
+    <button class="btn btn-secondary" onclick="showScreen('list-screen'); loadAds();">2. Ver Anúncios & QR Codes</button>
+    <button class="btn btn-world" onclick="openWorldMode();">3. Abrir Modo MUNDO (Câmera)</button>
   </div>
 
   <!-- TELA 2: CADASTRAR -->
   <div id="cadastrar-screen" class="screen">
     
     <div class="status-banner" id="status-text">
-      PASSO 1: Aponta para a parede e TOQUE NA TELA para fixar o ponto do anúncio!
+      Aponta para a parede. O marcador azul identifica a superfície. TOQUE para fixar!
     </div>
 
-    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;" vr-mode-ui="enabled: false">
-      <a-entity camera></a-entity>
+    <a-scene embedded webxr="optionalFeatures: hit-test, plane-detection;" vr-mode-ui="enabled: false">
+      <a-entity camera look-controls></a-entity>
 
-      <!-- Indicador da Mira (Circulo Azul Claro) -->
-      <a-ring id="wall-marker" radius-inner="0.1" radius-outer="0.18" color="#38bdf8" position="0 1.5 -2" rotation="0 0 0" material="shader: flat; opacity: 0.9; side: double"></a-ring>
+      <!-- Indicador de Superfície / Mapeamento (Azul Claro) -->
+      <a-plane id="wall-surface-preview" position="0 1.5 -1.5" rotation="0 0 0" width="1.2" height="0.8" color="#38bdf8" material="shader: flat; opacity: 0.4; side: double"></a-plane>
 
-      <!-- Anúncio em Foto na Parede -->
-      <a-plane id="ad-plane" position="0 1.5 -2" rotation="0 0 0" width="0.8" height="0.5" visible="false" material="shader: flat; side: double; transparent: true"></a-plane>
+      <!-- Anúncio em Imagem -->
+      <a-plane id="ad-plane" position="0 1.5 -1.5" rotation="0 0 0" width="1.0" height="0.6" visible="false" material="shader: flat; side: double; transparent: true"></a-plane>
     </a-scene>
 
     <div class="ar-controls" id="controls-panel">
-      <input type="text" id="ad-name" class="input-field btn-disabled" placeholder="Nome do Anúncio (ex: Parede Entrada)" disabled>
+      <input type="text" id="ad-name" class="input-field btn-disabled" placeholder="Nome do Anúncio (ex: Fachada Loja)" disabled>
       <input type="file" id="image-input" accept="image/*" class="input-field btn-disabled" onchange="handleImageUpload(event)" disabled>
 
       <div class="controls-grid">
@@ -88,9 +92,18 @@
     </div>
   </div>
 
-  <!-- TELA 3: QR CODES -->
+  <!-- TELA 3: MODO MUNDO (VISUALIZADOR PÚBLICO) -->
+  <div id="world-screen" class="screen">
+    <button class="btn-back-world" onclick="showScreen('home-screen');">← Menu</button>
+    <a-scene embedded vr-mode-ui="enabled: false">
+      <a-entity camera look-controls></a-entity>
+      <a-entity id="world-ads-container"></a-entity>
+    </a-scene>
+  </div>
+
+  <!-- TELA 4: LISTA DE QR CODES -->
   <div id="list-screen" class="screen">
-    <h2 style="text-align: center;">Anúncios Salvos</h2>
+    <h2 style="text-align: center;">Anúncios Salvos & QR Codes</h2>
     <div id="ads-container"></div>
     <button class="btn btn-secondary" style="margin: 20px auto; display: block;" onclick="showScreen('home-screen');">Voltar ao Menu</button>
   </div>
@@ -98,9 +111,8 @@
   <script>
     let wallDetected = false;
     let canTouch = false;
-    let lockedCoords = { x: 0, y: 1.5, z: -2.0 };
-    let adScale = { width: 0.8, height: 0.5 };
-    const MAX_WALL_WIDTH = 2.0;
+    let lockedCoords = { x: 0, y: 1.5, z: -1.5 };
+    let adScale = { width: 1.0, height: 0.6 };
     let currentImageData = "";
 
     function showScreen(screenId) {
@@ -111,36 +123,31 @@
 
     function startCadastrar(event) {
       if(event) event.stopPropagation();
-      
       showScreen('cadastrar-screen');
       wallDetected = false;
       canTouch = false;
 
-      // Reseta estado dos controles
-      document.getElementById('status-text').innerText = "PASSO 1: Aponta para a parede e TOQUE NA TELA para fixar o ponto do anúncio!";
-      document.getElementById('wall-marker').setAttribute('visible', 'true');
+      document.getElementById('status-text').innerText = "Aponta para a parede. O marcador azul identifica a superfície. TOQUE para fixar!";
+      document.getElementById('wall-surface-preview').setAttribute('visible', 'true');
       document.getElementById('ad-plane').setAttribute('visible', 'false');
 
-      // Bloqueia interações por 1 segundo para evitar que o clique do botão acione a trava
-      setTimeout(() => {
-        canTouch = true;
-      }, 1000);
+      setTimeout(() => { canTouch = true; }, 800);
     }
 
-    // Ação ao clicar na tela
+    // Clique na superfície para travar a posição
     window.addEventListener('click', function(e) {
       if (!canTouch || wallDetected) return;
-      if (e.target.closest('.ar-controls')) return;
+      if (e.target.closest('.ar-controls') || e.target.closest('.btn-back-world')) return;
 
-      const marker = document.getElementById('wall-marker');
-      const adPlane = document.getElementById('ad-plane');
-      
+      const surface = document.getElementById('wall-surface-preview');
       wallDetected = true;
-      marker.setAttribute('visible', 'false');
-
-      document.getElementById('status-text').innerText = "PASSO 2: Parede fixada! Selecione a imagem e digite o nome.";
+      surface.setAttribute('color', '#22c55e'); // Muda para verde para indicar seleção
       
-      // Libera os botões do formulário
+      setTimeout(() => {
+        surface.setAttribute('visible', 'false');
+      }, 500);
+
+      document.getElementById('status-text').innerText = "Superfície Selecionada! Adicione o nome e a foto do anúncio.";
       document.querySelectorAll('.btn-disabled').forEach(el => el.classList.remove('btn-disabled'));
       document.getElementById('ad-name').removeAttribute('disabled');
       document.getElementById('image-input').removeAttribute('disabled');
@@ -161,10 +168,6 @@
     }
 
     function adjustScale(delta) {
-      if (adScale.width + delta > MAX_WALL_WIDTH) {
-        alert("Atingiu o limite máximo para a parede!");
-        return;
-      }
       if (adScale.width + delta < 0.2) return;
 
       adScale.width = parseFloat((adScale.width + delta).toFixed(2));
@@ -194,6 +197,25 @@
 
       alert("Anúncio salvo com sucesso!");
       showScreen('home-screen');
+    }
+
+    // Carrega todos os anúncios na tela "Mundo"
+    function openWorldMode(singleAd = null) {
+      showScreen('world-screen');
+      const container = document.getElementById('world-ads-container');
+      container.innerHTML = "";
+
+      let ads = singleAd ? [singleAd] : JSON.parse(localStorage.getItem('mapa_invisivel_ads') || '[]');
+
+      ads.forEach(ad => {
+        const plane = document.createElement('a-plane');
+        plane.setAttribute('src', ad.image);
+        plane.setAttribute('position', `${ad.coords.x} ${ad.coords.y} ${ad.coords.z}`);
+        plane.setAttribute('width', ad.scale.width);
+        plane.setAttribute('height', ad.scale.height);
+        plane.setAttribute('material', 'shader: flat; side: double; transparent: true');
+        container.appendChild(plane);
+      });
     }
 
     function loadAds() {
@@ -228,6 +250,24 @@
         });
       });
     }
+
+    // Checa se o usuário abriu via QR Code para o Modo Mundo
+    window.onload = function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const mode = urlParams.get('mode');
+      const adId = urlParams.get('id');
+
+      if (mode === 'world') {
+        let ads = JSON.parse(localStorage.getItem('mapa_invisivel_ads') || '[]');
+        if (adId) {
+          let ad = ads.find(a => a.id == adId);
+          if (ad) openWorldMode(ad);
+          else openWorldMode();
+        } else {
+          openWorldMode();
+        }
+      }
+    };
   </script>
 </body>
 </html>
