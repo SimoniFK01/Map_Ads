@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>Anúncios AR - Otimizado iOS/Android</title>
 
-  <!-- Componente oficial com suporte nativo ao Quick Look (iOS) e Scene Viewer (Android) -->
+  <!-- Componente oficial com suporte nativo ao Quick Look (iOS) -->
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
@@ -65,7 +65,7 @@
     }
     model-viewer {
       width: 100%;
-      height: 300px;
+      height: 320px;
       background-color: #e5e5ea;
       border-radius: 12px;
       margin-bottom: 12px;
@@ -74,9 +74,12 @@
       background-color: #34c759;
       color: white;
       border: none;
-      border-radius: 8px;
-      padding: 10px 20px;
+      border-radius: 20px;
+      padding: 12px 24px;
       font-weight: bold;
+      font-size: 15px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+      cursor: pointer;
     }
   </style>
 </head>
@@ -167,17 +170,19 @@
         card.innerHTML = `
           <h3>${item.name}</h3>
           
-          <!-- Visualizador 3D/AR nativo compatível com iOS e Android -->
+          <!-- Visualizador 3D com suporte explícito ao Quick Look do Safari / iOS -->
           <model-viewer 
-            src="https://modelviewer.dev/shared-assets/models/poster.glb" 
-            ios-src="https://modelviewer.dev/shared-assets/models/poster.usdz"
+            src="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/main/2.0/InteractiveBillboard/glTF-Binary/InteractiveBillboard.glb" 
+            ios-src="https://developer.apple.com/augmented-reality/quick-look/models/retrotv/tv_retro.usdz"
             alt="${item.name}" 
             ar 
             ar-modes="quick-look scene-viewer webxr" 
+            ar-scale="auto"
+            ar-placement="wall"
             camera-controls 
             shadow-intensity="1">
             <button slot="ar-button" class="ar-button">
-              Visualizar na Parede (AR)
+              📷 Abrir Câmera no iPhone (Quick Look)
             </button>
           </model-viewer>
 
