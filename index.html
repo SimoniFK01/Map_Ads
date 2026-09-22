@@ -3,21 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Anúncios AR - Marcador</title>
+  <title>Anúncios AR - Otimizado iOS/Android</title>
 
-  <!-- Bibliotecas para AR.js e A-Frame (compatíveis com celulares sem ARCore) -->
-  <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-  <!-- Biblioteca para gerar QR Codes automaticamente -->
+  <!-- Componente oficial com suporte nativo ao Quick Look (iOS) e Scene Viewer (Android) -->
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
   <style>
     body {
       margin: 0;
       padding: 0;
-      font-family: Arial, sans-serif;
-      background-color: #f4f4f9;
-      color: #333;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f2f2f7;
+      color: #1c1c1e;
     }
     .container {
       max-width: 500px;
@@ -28,55 +26,57 @@
     .btn {
       display: block;
       width: 100%;
-      padding: 12px;
+      padding: 14px;
       margin: 10px 0;
       background: #007aff;
       color: white;
       border: none;
-      border-radius: 8px;
+      border-radius: 12px;
       font-size: 16px;
-      font-weight: bold;
+      font-weight: 600;
       cursor: pointer;
+      text-align: center;
+      text-decoration: none;
+      box-sizing: border-box;
     }
     .btn-secondary { background: #5856d6; }
     .btn-danger { background: #ff3b30; }
-    input, select {
+    input {
       width: 100%;
-      padding: 10px;
+      padding: 12px;
       margin: 8px 0 16px;
       box-sizing: border-box;
-      border: 1px solid #ccc;
-      border-radius: 6px;
+      border: 1px solid #c7c7cc;
+      border-radius: 8px;
+      font-size: 16px;
     }
     .card {
       background: white;
-      padding: 15px;
-      border-radius: 8px;
-      margin-bottom: 15px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      padding: 16px;
+      border-radius: 12px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
       text-align: center;
     }
     .qr-container {
       display: flex;
       justify-content: center;
-      margin: 10px 0;
+      margin: 12px 0;
     }
-    #arView {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100vw; height: 100vh;
-      z-index: 999;
-      display: none;
+    model-viewer {
+      width: 100%;
+      height: 300px;
+      background-color: #e5e5ea;
+      border-radius: 12px;
+      margin-bottom: 12px;
     }
-    .close-ar {
-      position: absolute;
-      top: 20px; right: 20px;
-      z-index: 1000;
-      background: rgba(0,0,0,0.7);
+    .ar-button {
+      background-color: #34c759;
       color: white;
       border: none;
-      padding: 10px 15px;
-      border-radius: 20px;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-weight: bold;
     }
   </style>
 </head>
@@ -85,31 +85,25 @@
   <div id="uiContainer" class="container">
     <!-- TELA 1: MENU PRINCIPAL -->
     <div id="screenMenu">
-      <h1>Anúncios Virtuais AR</h1>
-      <button class="btn" onclick="showScreen('screenCadastro')">1. Cadastrar Novo Anúncio</button>
-      <button class="btn btn-secondary" onclick="showScreen('screenLista')">2. Ver Anúncios Cadastrados (QR Codes)</button>
+      <h1>Anúncios AR (iOS & Android)</h1>
+      <button class="btn" onclick="showScreen('screenCadastro')">1. Cadastrar Anúncio</button>
+      <button class="btn btn-secondary" onclick="showScreen('screenLista')">2. Ver Anúncios & QR Codes</button>
     </div>
 
     <!-- TELA 2: FORMULÁRIO DE CADASTRO -->
     <div id="screenCadastro" style="display: none;">
       <h2>Cadastrar Anúncio</h2>
-      <label>Nome do Anúncio/Estabelecimento:</label>
-      <input type="text" id="adName" placeholder="Ex: Anúncio Padaria">
+      <label>Nome do Anúncio:</label>
+      <input type="text" id="adName" placeholder="Ex: Banner Loja Central">
 
-      <label>URL da Imagem do Anúncio (PNG/JPG):</label>
-      <input type="url" id="adImageUrl" placeholder="https://exemplo.com/imagem.png">
-
-      <label>Largura do Banner (metros):</label>
-      <input type="number" id="adWidth" value="2" step="0.1">
-
-      <label>Altura do Banner (metros):</label>
-      <input type="number" id="adHeight" value="1" step="0.1">
+      <label>Link da Imagem/Banner (URL):</label>
+      <input type="url" id="adImageUrl" placeholder="https://exemplo.com/banner.png">
 
       <button class="btn" onclick="salvarAnuncio()">Salvar Anúncio</button>
       <button class="btn btn-danger" onclick="showScreen('screenMenu')">Voltar</button>
     </div>
 
-    <!-- TELA 3: LISTA DE ANÚNCIOS COM QR CODE -->
+    <!-- TELA 3: LISTA DE ANÚNCIOS -->
     <div id="screenLista" style="display: none;">
       <h2>Anúncios Cadastrados</h2>
       <div id="listaAnuncios"></div>
@@ -117,32 +111,8 @@
     </div>
   </div>
 
-  <!-- CONTAINER DE VISUALIZAÇÃO EM REALIDADE AUMENTADA -->
-  <div id="arView">
-    <button class="close-ar" onclick="fecharAR()">X Sair da Câmera</button>
-    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
-      <a-assets>
-        <img id="arImgAsset" src="">
-      </a-assets>
-
-      <!-- Usa o marcador padrão HIRO (pode ser o QR Code colado na parede) -->
-      <a-marker preset="hiro">
-        <a-image 
-          id="arImageEntity" 
-          src="#arImgAsset" 
-          position="0 0.5 0" 
-          rotation="-90 0 0" 
-          width="2" 
-          height="1">
-        </a-image>
-      </a-marker>
-
-      <a-entity camera></a-entity>
-    </a-scene>
-  </div>
-
   <script>
-    let anuncios = JSON.parse(localStorage.getItem('ar_anuncios') || '[]');
+    let anuncios = JSON.parse(localStorage.getItem('ar_anuncios_ios') || '[]');
 
     function showScreen(screenId) {
       document.getElementById('screenMenu').style.display = 'none';
@@ -158,8 +128,6 @@
     function salvarAnuncio() {
       const name = document.getElementById('adName').value;
       const imageUrl = document.getElementById('adImageUrl').value;
-      const width = document.getElementById('adWidth').value || 2;
-      const height = document.getElementById('adHeight').value || 1;
 
       if (!name || !imageUrl) {
         alert('Por favor, preencha o nome e a URL da imagem!');
@@ -169,13 +137,11 @@
       const novoAnuncio = {
         id: Date.now(),
         name,
-        imageUrl,
-        width,
-        height
+        imageUrl
       };
 
       anuncios.push(novoAnuncio);
-      localStorage.setItem('ar_anuncios', JSON.stringify(anuncios));
+      localStorage.setItem('ar_anuncios_ios', JSON.stringify(anuncios));
 
       alert('Anúncio salvo com sucesso!');
       document.getElementById('adName').value = '';
@@ -196,21 +162,30 @@
         const card = document.createElement('div');
         card.className = 'card';
         
-        // Link gerado para abrir direto no leitor de AR deste anúncio
         const urlVisualizacao = `${window.location.origin}${window.location.pathname}?id=${item.id}`;
 
         card.innerHTML = `
           <h3>${item.name}</h3>
-          <p>Tamanho: ${item.width}m x ${item.height}m</p>
+          
+          <!-- Visualizador 3D/AR nativo compatível com iOS e Android -->
+          <model-viewer 
+            src="https://modelviewer.dev/shared-assets/models/poster.glb" 
+            ios-src="https://modelviewer.dev/shared-assets/models/poster.usdz"
+            alt="${item.name}" 
+            ar 
+            ar-modes="quick-look scene-viewer webxr" 
+            camera-controls 
+            shadow-intensity="1">
+            <button slot="ar-button" class="ar-button">
+              Visualizar na Parede (AR)
+            </button>
+          </model-viewer>
+
           <div class="qr-container" id="qrcode-${index}"></div>
-          <button class="btn" onclick="abrirCâmeraAR('${item.imageUrl}', ${item.width}, ${item.height})">
-            Testar Câmera Agora
-          </button>
         `;
         
         container.appendChild(card);
 
-        // Gera o QR Code para colar no local
         new QRCode(document.getElementById(`qrcode-${index}`), {
           text: urlVisualizacao,
           width: 128,
@@ -219,34 +194,12 @@
       });
     }
 
-    function abrirCâmeraAR(imageUrl, width, height) {
-      document.getElementById('uiContainer').style.display = 'none';
-      document.getElementById('arView').style.display = 'block';
-
-      const imgAsset = document.getElementById('arImgAsset');
-      const imageEntity = document.getElementById('arImageEntity');
-
-      imgAsset.setAttribute('src', imageUrl);
-      imageEntity.setAttribute('width', width);
-      imageEntity.setAttribute('height', height);
-    }
-
-    function fecharAR() {
-      document.getElementById('arView').style.display = 'none';
-      document.getElementById('uiContainer').style.display = 'block';
-      showScreen('screenMenu');
-    }
-
-    // Verifica se a URL foi aberta via leitura de QR Code direto com um ID de anúncio
     window.onload = function() {
       const urlParams = new URLSearchParams(window.location.search);
       const idParam = urlParams.get('id');
 
       if (idParam) {
-        const item = anuncios.find(a => a.id == idParam);
-        if (item) {
-          abrirCâmeraAR(item.imageUrl, item.width, item.height);
-        }
+        showScreen('screenLista');
       }
     };
   </script>
