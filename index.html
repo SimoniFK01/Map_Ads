@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>Mapa Invisível - Anúncios AR</title>
   
-  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+  <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
   <style>
@@ -18,6 +19,7 @@
     .btn { background: #2563eb; color: white; border: none; padding: 16px 24px; border-radius: 12px; font-size: 16px; font-weight: bold; width: 85%; max-width: 320px; cursor: pointer; }
     .btn-secondary { background: #334155; }
     .btn-world { background: #059669; }
+    .btn-action { background: #0284c7; margin-top: 5px; }
 
     /* Banners e Status */
     .status-banner {
@@ -27,7 +29,7 @@
       z-index: 1000; border: 1px solid #38bdf8; max-width: 85%;
     }
 
-    /* Formulario */
+    /* Painel de Controles */
     .ar-controls { 
       position: fixed; bottom: 0; left: 0; width: 100%; 
       background: rgba(15, 23, 42, 0.95); padding: 14px; 
@@ -39,7 +41,7 @@
     .btn-sm { padding: 10px; font-size: 13px; border-radius: 6px; border: none; background: #38bdf8; color: #0f172a; font-weight: bold; cursor: pointer; }
     .btn-disabled { opacity: 0.4; pointer-events: none; }
 
-    /* Modo Mundo / Visualizador */
+    /* Modo Mundo */
     .btn-back-world { position: fixed; top: 15px; left: 15px; z-index: 1000; background: rgba(0,0,0,0.7); color: white; border: none; padding: 8px 16px; border-radius: 20px; font-weight: bold; }
 
     /* Lista de QR Codes */
@@ -52,9 +54,9 @@
 
   <!-- TELA 1: HOME -->
   <div id="home-screen" class="screen active">
-    <h1>MAPA INVISÍVEL5</h1>
+    <h1>MAPA INVISÍVEL6</h1>
     <p>Plataforma de Anúncios em AR</p>
-    <button class="btn" onclick="startCadastrar(event);">1. Cadastrar Anúncio na Parede</button>
+    <button class="btn" onclick="startCadastrar();">1. Cadastrar Anúncio na Parede</button>
     <button class="btn btn-secondary" onclick="showScreen('list-screen'); loadAds();">2. Ver Anúncios & QR Codes</button>
     <button class="btn btn-world" onclick="openWorldMode();">3. Abrir Modo MUNDO (Câmera)</button>
   </div>
@@ -63,21 +65,24 @@
   <div id="cadastrar-screen" class="screen">
     
     <div class="status-banner" id="status-text">
-      Aponta para a parede. O marcador azul identifica a superfície. TOQUE para fixar!
+      Aponta para a parede. Quando ver o retângulo azul na tela, clique em "Fixar Anúncio Aqui"!
     </div>
 
-    <a-scene embedded webxr="optionalFeatures: hit-test, plane-detection;" vr-mode-ui="enabled: false">
-      <a-entity camera look-controls></a-entity>
+    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;" vr-mode-ui="enabled: false">
+      <a-entity camera></a-entity>
 
-      <!-- Indicador de Superfície / Mapeamento (Azul Claro) -->
-      <a-plane id="wall-surface-preview" position="0 1.5 -1.5" rotation="0 0 0" width="1.2" height="0.8" color="#38bdf8" material="shader: flat; opacity: 0.4; side: double"></a-plane>
+      <!-- Retângulo Azul Indicando a Superfície da Parede -->
+      <a-plane id="wall-surface-preview" position="0 1.5 -2.0" rotation="0 0 0" width="1.2" height="0.8" color="#38bdf8" material="shader: flat; opacity: 0.5; side: double"></a-plane>
 
-      <!-- Anúncio em Imagem -->
-      <a-plane id="ad-plane" position="0 1.5 -1.5" rotation="0 0 0" width="1.0" height="0.6" visible="false" material="shader: flat; side: double; transparent: true"></a-plane>
+      <!-- Imagem do Anúncio (Substitui o retângulo após seleção) -->
+      <a-plane id="ad-plane" position="0 1.5 -2.0" rotation="0 0 0" width="1.0" height="0.6" visible="false" material="shader: flat; side: double; transparent: true"></a-plane>
     </a-scene>
 
     <div class="ar-controls" id="controls-panel">
-      <input type="text" id="ad-name" class="input-field btn-disabled" placeholder="Nome do Anúncio (ex: Fachada Loja)" disabled>
+      <!-- Botão explícito para travar a posição sem falsos cliques -->
+      <button class="btn btn-action" id="btn-lock-wall" onclick="lockWallPosition()">📌 Fixar Anúncio Aqui</button>
+
+      <input type="text" id="ad-name" class="input-field btn-disabled" placeholder="Nome do Anúncio (ex: Fachada)" disabled>
       <input type="file" id="image-input" accept="image/*" class="input-field btn-disabled" onchange="handleImageUpload(event)" disabled>
 
       <div class="controls-grid">
@@ -92,11 +97,11 @@
     </div>
   </div>
 
-  <!-- TELA 3: MODO MUNDO (VISUALIZADOR PÚBLICO) -->
+  <!-- TELA 3: MODO MUNDO (VISUALIZADOR) -->
   <div id="world-screen" class="screen">
     <button class="btn-back-world" onclick="showScreen('home-screen');">← Menu</button>
-    <a-scene embedded vr-mode-ui="enabled: false">
-      <a-entity camera look-controls></a-entity>
+    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;" vr-mode-ui="enabled: false">
+      <a-entity camera></a-entity>
       <a-entity id="world-ads-container"></a-entity>
     </a-scene>
   </div>
@@ -110,8 +115,7 @@
 
   <script>
     let wallDetected = false;
-    let canTouch = false;
-    let lockedCoords = { x: 0, y: 1.5, z: -1.5 };
+    let lockedCoords = { x: 0, y: 1.5, z: -2.0 };
     let adScale = { width: 1.0, height: 0.6 };
     let currentImageData = "";
 
@@ -121,37 +125,40 @@
       window.dispatchEvent(new Event('resize'));
     }
 
-    function startCadastrar(event) {
-      if(event) event.stopPropagation();
+    function startCadastrar() {
       showScreen('cadastrar-screen');
       wallDetected = false;
-      canTouch = false;
 
-      document.getElementById('status-text').innerText = "Aponta para a parede. O marcador azul identifica a superfície. TOQUE para fixar!";
+      document.getElementById('status-text').innerText = "Aponta para a parede. Quando ver o retângulo azul, clique em 'Fixar Anúncio Aqui'!";
       document.getElementById('wall-surface-preview').setAttribute('visible', 'true');
+      document.getElementById('wall-surface-preview').setAttribute('color', '#38bdf8');
       document.getElementById('ad-plane').setAttribute('visible', 'false');
+      document.getElementById('btn-lock-wall').style.display = 'block';
 
-      setTimeout(() => { canTouch = true; }, 800);
+      // Bloqueia campos até fixar
+      document.querySelectorAll('.btn-disabled').forEach(el => el.classList.add('btn-disabled'));
+      document.getElementById('ad-name').setAttribute('disabled', 'true');
+      document.getElementById('image-input').setAttribute('disabled', 'true');
     }
 
-    // Clique na superfície para travar a posição
-    window.addEventListener('click', function(e) {
-      if (!canTouch || wallDetected) return;
-      if (e.target.closest('.ar-controls') || e.target.closest('.btn-back-world')) return;
-
-      const surface = document.getElementById('wall-surface-preview');
+    // Ação do Botão "Fixar Anúncio Aqui"
+    function lockWallPosition() {
       wallDetected = true;
-      surface.setAttribute('color', '#22c55e'); // Muda para verde para indicar seleção
-      
+      const surface = document.getElementById('wall-surface-preview');
+      surface.setAttribute('color', '#22c55e'); // Fica verde ao fixar
+
       setTimeout(() => {
         surface.setAttribute('visible', 'false');
-      }, 500);
+      }, 400);
 
-      document.getElementById('status-text').innerText = "Superfície Selecionada! Adicione o nome e a foto do anúncio.";
+      document.getElementById('status-text').innerText = "Superfície Fixada! Escolha o nome e envie a foto do anúncio.";
+      document.getElementById('btn-lock-wall').style.display = 'none';
+
+      // Habilita formulário
       document.querySelectorAll('.btn-disabled').forEach(el => el.classList.remove('btn-disabled'));
       document.getElementById('ad-name').removeAttribute('disabled');
       document.getElementById('image-input').removeAttribute('disabled');
-    });
+    }
 
     function handleImageUpload(event) {
       const file = event.target.files[0];
@@ -199,7 +206,6 @@
       showScreen('home-screen');
     }
 
-    // Carrega todos os anúncios na tela "Mundo"
     function openWorldMode(singleAd = null) {
       showScreen('world-screen');
       const container = document.getElementById('world-ads-container');
@@ -251,7 +257,6 @@
       });
     }
 
-    // Checa se o usuário abriu via QR Code para o Modo Mundo
     window.onload = function() {
       const urlParams = new URLSearchParams(window.location.search);
       const mode = urlParams.get('mode');
