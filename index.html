@@ -3,322 +3,249 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Mapa Invisível - Anúncios AR</title>
-  
+  <title>Anúncios AR - Marcador</title>
+
+  <!-- Bibliotecas para AR.js e A-Frame (compatíveis com celulares sem ARCore) -->
   <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
   <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  <!-- Biblioteca para gerar QR Codes automaticamente -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
   <style>
-    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #0f172a; color: white; overflow: hidden; }
-    .screen { display: none; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; }
-    .active { display: flex; flex-direction: column; }
-    
-    /* Home */
-    #home-screen { align-items: center; justify-content: center; gap: 15px; text-align: center; padding: 20px; }
-    .btn { background: #2563eb; color: white; border: none; padding: 16px 24px; border-radius: 12px; font-size: 16px; font-weight: bold; width: 85%; max-width: 320px; cursor: pointer; }
-    .btn-secondary { background: #334155; }
-    .btn-world { background: #059669; }
-    .btn-action { background: #0284c7; margin-top: 5px; }
-
-    /* Banners e Status */
-    .status-banner {
-      position: fixed; top: 15px; left: 50%; transform: translateX(-50%);
-      background: rgba(15, 23, 42, 0.9); color: #38bdf8; padding: 10px 18px;
-      border-radius: 20px; font-size: 13px; font-weight: bold; text-align: center;
-      z-index: 1000; border: 1px solid #38bdf8; max-width: 85%;
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f9;
+      color: #333;
     }
-
-    /* Painel de Controles */
-    .ar-controls { 
-      position: fixed; bottom: 0; left: 0; width: 100%; 
-      background: rgba(15, 23, 42, 0.95); padding: 14px; 
-      box-sizing: border-box; display: flex; flex-direction: column; 
-      gap: 10px; z-index: 1000; border-top-left-radius: 20px; border-top-right-radius: 20px;
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+      padding: 20px;
     }
-    .input-field { padding: 10px; border-radius: 8px; border: 1px solid #475569; background: #1e293b; color: white; font-size: 14px; }
-    .controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .btn-sm { padding: 10px; font-size: 13px; border-radius: 6px; border: none; background: #38bdf8; color: #0f172a; font-weight: bold; cursor: pointer; }
-    .btn-disabled { opacity: 0.4; pointer-events: none; }
-
-    /* Modo Mundo */
-    .btn-back-world { position: fixed; top: 15px; left: 15px; z-index: 1000; background: rgba(0,0,0,0.7); color: white; border: none; padding: 8px 16px; border-radius: 20px; font-weight: bold; }
-
-    /* Lista de QR Codes */
-    #list-screen { padding: 20px; overflow-y: auto; box-sizing: border-box; }
-    .ad-card { background: #1e293b; border-radius: 12px; padding: 15px; margin-bottom: 15px; display: flex; flex-direction: column; align-items: center; gap: 10px; border: 1px solid #334155; }
-    .qr-container { background: white; padding: 10px; border-radius: 8px; }
+    h1, h2 { text-align: center; }
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      background: #007aff;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .btn-secondary { background: #5856d6; }
+    .btn-danger { background: #ff3b30; }
+    input, select {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0 16px;
+      box-sizing: border-box;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    .card {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    .qr-container {
+      display: flex;
+      justify-content: center;
+      margin: 10px 0;
+    }
+    #arView {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      z-index: 999;
+      display: none;
+    }
+    .close-ar {
+      position: absolute;
+      top: 20px; right: 20px;
+      z-index: 1000;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 20px;
+    }
   </style>
 </head>
 <body>
 
-  <!-- TELA 1: HOME -->
-  <div id="home-screen" class="screen active">
-    <h1>MAPA INVISÍVEL6</h1>
-    <p>Plataforma de Anúncios em AR</p>
-    <button class="btn" onclick="startCadastrar();">1. Cadastrar Anúncio na Parede</button>
-    <button class="btn btn-secondary" onclick="showScreen('list-screen'); loadAds();">2. Ver Anúncios & QR Codes</button>
-    <button class="btn btn-world" onclick="openWorldMode();">3. Abrir Modo MUNDO (Câmera)</button>
-  </div>
+  <div id="uiContainer" class="container">
+    <!-- TELA 1: MENU PRINCIPAL -->
+    <div id="screenMenu">
+      <h1>Anúncios Virtuais AR</h1>
+      <button class="btn" onclick="showScreen('screenCadastro')">1. Cadastrar Novo Anúncio</button>
+      <button class="btn btn-secondary" onclick="showScreen('screenLista')">2. Ver Anúncios Cadastrados (QR Codes)</button>
+    </div>
 
-  <!-- TELA 2: CADASTRAR -->
-  <div id="cadastrar-screen" class="screen">
-    <div class="status-banner" id="status-text">Mova o celular devagar na parede até aparecer o círculo azul</div>
-  
-    <button id="btn-lock-wall" style="position:fixed;bottom:120px;left:50%;transform:translateX(-50%);z-index:1001;" class="btn btn-action">📌 Fixar Anúncio Aqui</button>
-  
-    <!-- Canvas do Three.js vai aqui -->
-    <canvas id="ar-canvas" style="width:100%;height:100%;display:block;"></canvas>
-  
-    <div class="ar-controls">
-      <input type="text" id="ad-name" class="input-field" placeholder="Nome do Anúncio">
-      <input type="file" id="image-input" accept="image/*" class="input-field" onchange="handleImageUpload(event)">
-      <div class="controls-grid">
-        <button class="btn-sm" onclick="adjustScale(0.1)">+ Aumentar</button>
-        <button class="btn-sm" onclick="adjustScale(-0.1)">- Reduzir</button>
-      </div>
-      <div style="display:flex;gap:8px;">
-        <button class="btn" id="btn-save" style="width:70%;" onclick="saveAd()">Salvar Anúncio</button>
-        <button class="btn btn-secondary" style="width:30%;" onclick="showScreen('home-screen');">Voltar</button>
-      </div>
+    <!-- TELA 2: FORMULÁRIO DE CADASTRO -->
+    <div id="screenCadastro" style="display: none;">
+      <h2>Cadastrar Anúncio</h2>
+      <label>Nome do Anúncio/Estabelecimento:</label>
+      <input type="text" id="adName" placeholder="Ex: Anúncio Padaria">
+
+      <label>URL da Imagem do Anúncio (PNG/JPG):</label>
+      <input type="url" id="adImageUrl" placeholder="https://exemplo.com/imagem.png">
+
+      <label>Largura do Banner (metros):</label>
+      <input type="number" id="adWidth" value="2" step="0.1">
+
+      <label>Altura do Banner (metros):</label>
+      <input type="number" id="adHeight" value="1" step="0.1">
+
+      <button class="btn" onclick="salvarAnuncio()">Salvar Anúncio</button>
+      <button class="btn btn-danger" onclick="showScreen('screenMenu')">Voltar</button>
+    </div>
+
+    <!-- TELA 3: LISTA DE ANÚNCIOS COM QR CODE -->
+    <div id="screenLista" style="display: none;">
+      <h2>Anúncios Cadastrados</h2>
+      <div id="listaAnuncios"></div>
+      <button class="btn btn-danger" onclick="showScreen('screenMenu')">Voltar ao Menu</button>
     </div>
   </div>
-  
-  <script type="module">
-  import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
-  import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/webxr/ARButton.js';
-  
-  let hitTestSource = null, hitTestSourceRequested = false;
-  let reticle, currentAdMesh, wallAnchor = null;
-  
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera();
-  const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('ar-canvas'), alpha: true, antialias: true });
-  renderer.xr.enabled = true;
-  
-  // Retículo que gruda na parede
-  reticle = new THREE.Mesh(
-    new THREE.RingGeometry(0.07, 0.09, 32).rotateX(-Math.PI/2),
-    new THREE.MeshBasicMaterial({ color: 0x38bdf8 })
-  );
-  reticle.visible = false;
-  scene.add(reticle);
-  
-  // Quando clicar em Fixar
-  document.getElementById('btn-lock-wall').onclick = () => {
-    if(reticle.visible){
-      wallAnchor = reticle.matrix.clone();
-      document.getElementById('status-text').innerText = "FIXADO! Agora escolhe a imagem.";
-      // Cria plano do anúncio na âncora
-      if(currentAdMesh) scene.add(currentAdMesh);
-    }
-  };
-  
-  renderer.setAnimationLoop((time, frame) => {
-    if(frame){
-      const refSpace = renderer.xr.getReferenceSpace();
-      const session = renderer.xr.getSession();
-      if(!hitTestSourceRequested){
-        session.requestReferenceSpace('viewer').then(ref => {
-          session.requestHitTestSource({ space: ref }).then(src => hitTestSource = src);
-        });
-        hitTestSourceRequested = true;
-      }
-      if(hitTestSource){
-        const hits = frame.getHitTestResults(hitTestSource);
-        if(hits.length > 0){
-          const hit = hits[0];
-          const pose = hit.getPose(refSpace);
-          reticle.visible = true;
-          reticle.matrix.fromArray(pose.transform.matrix);
-          reticle.matrix.decompose(reticle.position, reticle.quaternion, reticle.scale);
-          if(!wallAnchor && currentAdMesh){
-            currentAdMesh.position.copy(reticle.position);
-            currentAdMesh.quaternion.copy(reticle.quaternion);
-          }
-        }
-      }
-    }
-    renderer.render(scene, camera);
-  });
-  
-  // Adiciona botão AR nativo
-  document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
-  </script>
 
-  <!-- TELA 3: MODO MUNDO (VISUALIZADOR) -->
-  <div id="world-screen" class="screen">
-    <button class="btn-back-world" onclick="showScreen('home-screen');">← Menu</button>
-    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;" vr-mode-ui="enabled: false">
+  <!-- CONTAINER DE VISUALIZAÇÃO EM REALIDADE AUMENTADA -->
+  <div id="arView">
+    <button class="close-ar" onclick="fecharAR()">X Sair da Câmera</button>
+    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
+      <a-assets>
+        <img id="arImgAsset" src="">
+      </a-assets>
+
+      <!-- Usa o marcador padrão HIRO (pode ser o QR Code colado na parede) -->
+      <a-marker preset="hiro">
+        <a-image 
+          id="arImageEntity" 
+          src="#arImgAsset" 
+          position="0 0.5 0" 
+          rotation="-90 0 0" 
+          width="2" 
+          height="1">
+        </a-image>
+      </a-marker>
+
       <a-entity camera></a-entity>
-      <a-entity id="world-ads-container"></a-entity>
     </a-scene>
   </div>
 
-  <!-- TELA 4: LISTA DE QR CODES -->
-  <div id="list-screen" class="screen">
-    <h2 style="text-align: center;">Anúncios Salvos & QR Codes</h2>
-    <div id="ads-container"></div>
-    <button class="btn btn-secondary" style="margin: 20px auto; display: block;" onclick="showScreen('home-screen');">Voltar ao Menu</button>
-  </div>
-
   <script>
-    let wallDetected = false;
-    let lockedCoords = { x: 0, y: 1.5, z: -2.0 };
-    let adScale = { width: 1.0, height: 0.6 };
-    let currentImageData = "";
+    let anuncios = JSON.parse(localStorage.getItem('ar_anuncios') || '[]');
 
     function showScreen(screenId) {
-      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-      document.getElementById(screenId).classList.add('active');
-      window.dispatchEvent(new Event('resize'));
-    }
+      document.getElementById('screenMenu').style.display = 'none';
+      document.getElementById('screenCadastro').style.display = 'none';
+      document.getElementById('screenLista').style.display = 'none';
+      document.getElementById(screenId).style.display = 'block';
 
-    function startCadastrar() {
-      showScreen('cadastrar-screen');
-      wallDetected = false;
-
-      document.getElementById('status-text').innerText = "Aponta para a parede. Quando ver o retângulo azul, clique em 'Fixar Anúncio Aqui'!";
-      document.getElementById('wall-surface-preview').setAttribute('visible', 'true');
-      document.getElementById('wall-surface-preview').setAttribute('color', '#38bdf8');
-      document.getElementById('ad-plane').setAttribute('visible', 'false');
-      document.getElementById('btn-lock-wall').style.display = 'block';
-
-      // Bloqueia campos até fixar
-      document.querySelectorAll('.btn-disabled').forEach(el => el.classList.add('btn-disabled'));
-      document.getElementById('ad-name').setAttribute('disabled', 'true');
-      document.getElementById('image-input').setAttribute('disabled', 'true');
-    }
-
-    // Ação do Botão "Fixar Anúncio Aqui"
-    function lockWallPosition() {
-      wallDetected = true;
-      const surface = document.getElementById('wall-surface-preview');
-      surface.setAttribute('color', '#22c55e'); // Fica verde ao fixar
-
-      setTimeout(() => {
-        surface.setAttribute('visible', 'false');
-      }, 400);
-
-      document.getElementById('status-text').innerText = "Superfície Fixada! Escolha o nome e envie a foto do anúncio.";
-      document.getElementById('btn-lock-wall').style.display = 'none';
-
-      // Habilita formulário
-      document.querySelectorAll('.btn-disabled').forEach(el => el.classList.remove('btn-disabled'));
-      document.getElementById('ad-name').removeAttribute('disabled');
-      document.getElementById('image-input').removeAttribute('disabled');
-    }
-
-    function handleImageUpload(event) {
-      const file = event.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          currentImageData = e.target.result;
-          const plane = document.getElementById('ad-plane');
-          plane.setAttribute('src', currentImageData);
-          plane.setAttribute('visible', 'true');
-        };
-        reader.readAsDataURL(file);
+      if (screenId === 'screenLista') {
+        renderizarLista();
       }
     }
 
-    function adjustScale(delta) {
-      if (adScale.width + delta < 0.2) return;
+    function salvarAnuncio() {
+      const name = document.getElementById('adName').value;
+      const imageUrl = document.getElementById('adImageUrl').value;
+      const width = document.getElementById('adWidth').value || 2;
+      const height = document.getElementById('adHeight').value || 1;
 
-      adScale.width = parseFloat((adScale.width + delta).toFixed(2));
-      adScale.height = parseFloat((adScale.height + (delta * 0.6)).toFixed(2));
-
-      const plane = document.getElementById('ad-plane');
-      plane.setAttribute('width', adScale.width);
-      plane.setAttribute('height', adScale.height);
-    }
-
-    function saveAd() {
-      const name = document.getElementById('ad-name').value;
-      if (!name) return alert("Digite o nome do anúncio!");
-      if (!currentImageData) return alert("Selecione uma foto!");
-
-      const newAd = {
-        id: Date.now(),
-        name: name,
-        image: currentImageData,
-        coords: lockedCoords,
-        scale: adScale
-      };
-
-      let ads = JSON.parse(localStorage.getItem('mapa_invisivel_ads') || '[]');
-      ads.push(newAd);
-      localStorage.setItem('mapa_invisivel_ads', JSON.stringify(ads));
-
-      alert("Anúncio salvo com sucesso!");
-      showScreen('home-screen');
-    }
-
-    function openWorldMode(singleAd = null) {
-      showScreen('world-screen');
-      const container = document.getElementById('world-ads-container');
-      container.innerHTML = "";
-
-      let ads = singleAd ? [singleAd] : JSON.parse(localStorage.getItem('mapa_invisivel_ads') || '[]');
-
-      ads.forEach(ad => {
-        const plane = document.createElement('a-plane');
-        plane.setAttribute('src', ad.image);
-        plane.setAttribute('position', `${ad.coords.x} ${ad.coords.y} ${ad.coords.z}`);
-        plane.setAttribute('width', ad.scale.width);
-        plane.setAttribute('height', ad.scale.height);
-        plane.setAttribute('material', 'shader: flat; side: double; transparent: true');
-        container.appendChild(plane);
-      });
-    }
-
-    function loadAds() {
-      const container = document.getElementById('ads-container');
-      container.innerHTML = "";
-      let ads = JSON.parse(localStorage.getItem('mapa_invisivel_ads') || '[]');
-
-      if (ads.length === 0) {
-        container.innerHTML = "<p style='text-align:center;'>Nenhum anúncio cadastrado ainda.</p>";
+      if (!name || !imageUrl) {
+        alert('Por favor, preencha o nome e a URL da imagem!');
         return;
       }
 
-      ads.forEach(ad => {
+      const novoAnuncio = {
+        id: Date.now(),
+        name,
+        imageUrl,
+        width,
+        height
+      };
+
+      anuncios.push(novoAnuncio);
+      localStorage.setItem('ar_anuncios', JSON.stringify(anuncios));
+
+      alert('Anúncio salvo com sucesso!');
+      document.getElementById('adName').value = '';
+      document.getElementById('adImageUrl').value = '';
+      showScreen('screenMenu');
+    }
+
+    function renderizarLista() {
+      const container = document.getElementById('listaAnuncios');
+      container.innerHTML = '';
+
+      if (anuncios.length === 0) {
+        container.innerHTML = '<p style="text-align:center;">Nenhum anúncio cadastrado ainda.</p>';
+        return;
+      }
+
+      anuncios.forEach((item, index) => {
         const card = document.createElement('div');
-        card.className = 'ad-card';
+        card.className = 'card';
+        
+        // Link gerado para abrir direto no leitor de AR deste anúncio
+        const urlVisualizacao = `${window.location.origin}${window.location.pathname}?id=${item.id}`;
+
         card.innerHTML = `
-          <h3>${ad.name}</h3>
-          <p style="font-size: 12px; font-family: monospace; color: #38bdf8;">
-            Tamanho: ${ad.scale.width}m x ${ad.scale.height}m
-          </p>
-          <div class="qr-container" id="qr-${ad.id}"></div>
+          <h3>${item.name}</h3>
+          <p>Tamanho: ${item.width}m x ${item.height}m</p>
+          <div class="qr-container" id="qrcode-${index}"></div>
+          <button class="btn" onclick="abrirCâmeraAR('${item.imageUrl}', ${item.width}, ${item.height})">
+            Testar Câmera Agora
+          </button>
         `;
+        
         container.appendChild(card);
 
-        const baseUrl = window.location.href.split('?')[0];
-        const worldUrl = `${baseUrl}?mode=world&id=${ad.id}`;
-        
-        new QRCode(document.getElementById(`qr-${ad.id}`), {
-          text: worldUrl,
-          width: 140,
-          height: 140
+        // Gera o QR Code para colar no local
+        new QRCode(document.getElementById(`qrcode-${index}`), {
+          text: urlVisualizacao,
+          width: 128,
+          height: 128
         });
       });
     }
 
+    function abrirCâmeraAR(imageUrl, width, height) {
+      document.getElementById('uiContainer').style.display = 'none';
+      document.getElementById('arView').style.display = 'block';
+
+      const imgAsset = document.getElementById('arImgAsset');
+      const imageEntity = document.getElementById('arImageEntity');
+
+      imgAsset.setAttribute('src', imageUrl);
+      imageEntity.setAttribute('width', width);
+      imageEntity.setAttribute('height', height);
+    }
+
+    function fecharAR() {
+      document.getElementById('arView').style.display = 'none';
+      document.getElementById('uiContainer').style.display = 'block';
+      showScreen('screenMenu');
+    }
+
+    // Verifica se a URL foi aberta via leitura de QR Code direto com um ID de anúncio
     window.onload = function() {
       const urlParams = new URLSearchParams(window.location.search);
-      const mode = urlParams.get('mode');
-      const adId = urlParams.get('id');
+      const idParam = urlParams.get('id');
 
-      if (mode === 'world') {
-        let ads = JSON.parse(localStorage.getItem('mapa_invisivel_ads') || '[]');
-        if (adId) {
-          let ad = ads.find(a => a.id == adId);
-          if (ad) openWorldMode(ad);
-          else openWorldMode();
-        } else {
-          openWorldMode();
+      if (idParam) {
+        const item = anuncios.find(a => a.id == idParam);
+        if (item) {
+          abrirCâmeraAR(item.imageUrl, item.width, item.height);
         }
       }
     };
