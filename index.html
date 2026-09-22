@@ -1,28 +1,210 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-  </head>
-  <body style="margin: 0px; overflow: hidden;">
-    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
-      <a-assets>
-        <!-- Nome exato do seu arquivo de imagem PNG -->
-        <img id="logo" src="sua-logo.png">
-      </a-assets>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mapa Invisível - Anúncios AR</title>
+  
+  <!-- A-Frame e AR.js -->
+  <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  <!-- Biblioteca para gerar QR Codes automaticamente -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
-      <!-- Nome exato do seu arquivo .patt -->
-      <a-marker type="pattern" url="pattern-WhatsApp Image 2026-09-22 at 11.00.25.patt">
-        <a-image 
-          src="#logo" 
-          position="0 0 0" 
-          rotation="-90 0 0" 
-          width="2" 
-          height="1">
-        </a-image>
-      </a-marker>
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: white; }
+    .screen { display: none; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; }
+    .active { display: flex; flex-direction: column; }
+    
+    /* Tela Inicial */
+    #home-screen { align-items: center; justify-content: center; gap: 20px; text-align: center; padding: 20px; }
+    .btn { background: #2563eb; color: white; border: none; padding: 16px 32px; border-radius: 12px; font-size: 18px; font-weight: bold; width: 80%; max-width: 300px; cursor: pointer; }
+    .btn-secondary { background: #334155; }
+    
+    /* Controles de AR na Câmera */
+    .ar-controls { position: fixed; bottom: 0; left: 0; width: 100%; background: rgba(15, 23, 42, 0.9); padding: 15px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; z-index: 999; border-top-left-radius: 20px; border-top-right-radius: 20px; }
+    .input-field { padding: 10px; border-radius: 8px; border: 1px solid #475569; background: #1e293b; color: white; font-size: 14px; }
+    .coords-info { font-family: monospace; font-size: 12px; color: #38bdf8; text-align: center; }
+    .controls-row { display: flex; gap: 10px; justify-content: center; }
+    .btn-sm { padding: 8px 16px; font-size: 14px; border-radius: 8px; border: none; background: #38bdf8; color: #0f172a; font-weight: bold; }
 
-      <a-entity camera></a-entity>
+    /* Tela de Visualização / Lista */
+    #list-screen { padding: 20px; overflow-y: auto; box-sizing: border-box; }
+    .ad-card { background: #1e293b; border-radius: 12px; padding: 15px; margin-bottom: 15px; display: flex; flex-direction: column; align-items: center; gap: 10px; border: 1px solid #334155; }
+    .qr-container { background: white; padding: 10px; border-radius: 8px; }
+  </style>
+</head>
+<body>
+
+  <!-- TELA 1: HOME (CADASTRAR OU VISUALIZAR) -->
+  <div id="home-screen" class="screen active">
+    <h1>MAPA INVISÍVEL</h1>
+    <p>Anúncios 2.0 em Realidade Aumentada</p>
+    <button class="btn" onclick="showScreen('cadastrar-screen'); startAR();">Cadastrar Anúncio</button>
+    <button class="btn btn-secondary" onclick="showScreen('list-screen'); loadAds();">Visualizar Anúncios</button>
+  </div>
+
+  <!-- TELA 2: CADASTRAR (CÂMERA + CONTROLES) -->
+  <div id="cadastrar-screen" class="screen">
+    <a-scene id="ar-scene" embedded arjs="sourceType: webcam; debugUIEnabled: false;" vr-mode-ui="enabled: false">
+      <a-entity id="camera" camera look-controls></a-entity>
+      <!-- Entidade dinâmica onde a imagem será renderizada -->
+      <a-plane id="ar-image" position="0 1.5 -2" rotation="0 0 0" width="1" height="0.6" visible="false" material="shader: flat; transparent: true"></a-plane>
     </a-scene>
-  </body>
+
+    <div class="ar-controls">
+      <input type="text" id="ad-name" class="input-field" placeholder="Nome do Anúncio (ex: Loja do João)">
+      <input type="file" id="image-input" accept="image/*" class="input-field" onchange="handleImageUpload(event)">
+      
+      <div class="coords-info" id="coords-display">
+        Posição no Mundo: X: 0.00 | Y: 1.50 | Z: -2.00
+      </div>
+
+      <div class="controls-row">
+        <button class="btn-sm" onclick="adjustScale(0.1)">+ Tamanho</button>
+        <button class="btn-sm" onclick="adjustScale(-0.1)">- Tamanho</button>
+        <button class="btn-sm" onclick="adjustPosition('z', -0.2)">Afastar</button>
+        <button class="btn-sm" onclick="adjustPosition('z', 0.2)">Aproximar</button>
+      </div>
+
+      <div class="controls-row">
+        <button class="btn" style="width: 100%;" onclick="saveAd()">Salvar Anúncio (JSON)</button>
+        <button class="btn btn-secondary" style="width: 40%;" onclick="stopAR(); showScreen('home-screen');">Voltar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TELA 3: VISUALIZAR (LISTA + QR CODES) -->
+  <div id="list-screen" class="screen">
+    <h2 style="text-align: center;">Anúncios Cadastrados</h2>
+    <div id="ads-container"></div>
+    <button class="btn btn-secondary" style="margin: 20px auto; display: block;" onclick="showScreen('home-screen');">Voltar ao Menu</button>
+  </div>
+
+  <script>
+    let currentCoords = { x: 0, y: 1.5, z: -2 };
+    let currentScale = { width: 1, height: 0.6 };
+    let currentImageData = "";
+
+    // NAVEGAÇÃO ENTRE TELAS
+    function showScreen(screenId) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById(screenId).classList.add('active');
+    }
+
+    // CARREGAR IMAGEM IMPORTADA
+    function handleImageUpload(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          currentImageData = e.target.result;
+          const plane = document.getElementById('ar-image');
+          plane.setAttribute('src', currentImageData);
+          plane.setAttribute('visible', 'true');
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    // AJUSTAR POSIÇÃO E TAMANHO
+    function adjustPosition(axis, delta) {
+      currentCoords[axis] = parseFloat((currentCoords[axis] + delta).toFixed(2));
+      const plane = document.getElementById('ar-image');
+      plane.setAttribute('position', `${currentCoords.x} ${currentCoords.y} ${currentCoords.z}`);
+      updateCoordsDisplay();
+    }
+
+    function adjustScale(delta) {
+      currentScale.width = Math.max(0.2, parseFloat((currentScale.width + delta).toFixed(2)));
+      currentScale.height = Math.max(0.2, parseFloat((currentScale.height + delta).toFixed(2)));
+      const plane = document.getElementById('ar-image');
+      plane.setAttribute('width', currentScale.width);
+      plane.setAttribute('height', currentScale.height);
+    }
+
+    function updateCoordsDisplay() {
+      document.getElementById('coords-display').innerText = 
+        `Posição no Mundo: X: ${currentCoords.x} | Y: ${currentCoords.y} | Z: ${currentCoords.z}`;
+    }
+
+    // SALVAR NO BANCO DE DADOS (LOCALSTORAGE / JSON)
+    function saveAd() {
+      const name = document.getElementById('ad-name').value;
+      if (!name) return alert("Por favor, digite o nome do anúncio!");
+      if (!currentImageData) return alert("Por favor, importe uma imagem!");
+
+      const newAd = {
+        id: Date.now(),
+        name: name,
+        image: currentImageData,
+        coords: currentCoords,
+        scale: currentScale
+      };
+
+      let ads = JSON.parse(localStorage.getItem('mapa_invisivel_ads') || '[]');
+      ads.push(newAd);
+      localStorage.setItem('mapa_invisivel_ads', JSON.stringify(ads));
+
+      alert("Anúncio salvo com sucesso!");
+      stopAR();
+      showScreen('home-screen');
+    }
+
+    // CARREGAR LISTA DE ANÚNCIOS E GERAR QR CODES
+    function loadAds() {
+      const container = document.getElementById('ads-container');
+      container.innerHTML = "";
+      let ads = JSON.parse(localStorage.getItem('mapa_invisivel_ads') || '[]');
+
+      if (ads.length === 0) {
+        container.innerHTML = "<p style='text-align:center;'>Nenhum anúncio cadastrado ainda.</p>";
+        return;
+      }
+
+      ads.forEach(ad => {
+        const card = document.createElement('div');
+        card.className = 'ad-card';
+        card.innerHTML = `
+          <h3>${ad.name}</h3>
+          <p>X: ${ad.coords.x} | Y: ${ad.coords.y} | Z: ${ad.coords.z}</p>
+          <div class="qr-container" id="qr-${ad.id}"></div>
+        `;
+        container.appendChild(card);
+
+        // Gera o QR Code com a URL única contendo os parâmetros do anúncio
+        const baseUrl = window.location.href.split('?')[0];
+        const viewUrl = `${baseUrl}?viewAd=${ad.id}`;
+        
+        new QRCode(document.getElementById(`qr-${ad.id}`), {
+          text: viewUrl,
+          width: 128,
+          height: 128
+        });
+      });
+    }
+
+    // MODO LEITOR AO ESCANEAR O QR CODE
+    window.onload = function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const adId = urlParams.get('viewAd');
+      
+      if (adId) {
+        let ads = JSON.parse(localStorage.getItem('mapa_invisivel_ads') || '[]');
+        const ad = ads.find(a => a.id == adId);
+        if (ad) {
+          showScreen('cadastrar-screen');
+          document.querySelector('.ar-controls').style.display = 'none'; // Esconde painel de edição
+          
+          const plane = document.getElementById('ar-image');
+          plane.setAttribute('src', ad.image);
+          plane.setAttribute('position', `${ad.coords.x} ${ad.coords.y} ${ad.coords.z}`);
+          plane.setAttribute('width', ad.scale.width);
+          plane.setAttribute('height', ad.scale.height);
+          plane.setAttribute('visible', 'true');
+        }
+      }
+    };
+  </script>
+</body>
 </html>
