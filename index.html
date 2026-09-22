@@ -63,39 +63,88 @@
 
   <!-- TELA 2: CADASTRAR -->
   <div id="cadastrar-screen" class="screen">
-    
-    <div class="status-banner" id="status-text">
-      Aponta para a parede. Quando ver o retângulo azul na tela, clique em "Fixar Anúncio Aqui"!
-    </div>
-
-    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;" vr-mode-ui="enabled: false">
-      <a-entity camera></a-entity>
-
-      <!-- Retângulo Azul Indicando a Superfície da Parede -->
-      <a-plane id="wall-surface-preview" position="0 1.5 -2.0" rotation="0 0 0" width="1.2" height="0.8" color="#38bdf8" material="shader: flat; opacity: 0.5; side: double"></a-plane>
-
-      <!-- Imagem do Anúncio (Substitui o retângulo após seleção) -->
-      <a-plane id="ad-plane" position="0 1.5 -2.0" rotation="0 0 0" width="1.0" height="0.6" visible="false" material="shader: flat; side: double; transparent: true"></a-plane>
-    </a-scene>
-
-    <div class="ar-controls" id="controls-panel">
-      <!-- Botão explícito para travar a posição sem falsos cliques -->
-      <button class="btn btn-action" id="btn-lock-wall" onclick="lockWallPosition()">📌 Fixar Anúncio Aqui</button>
-
-      <input type="text" id="ad-name" class="input-field btn-disabled" placeholder="Nome do Anúncio (ex: Fachada)" disabled>
-      <input type="file" id="image-input" accept="image/*" class="input-field btn-disabled" onchange="handleImageUpload(event)" disabled>
-
+    <div class="status-banner" id="status-text">Mova o celular devagar na parede até aparecer o círculo azul</div>
+  
+    <button id="btn-lock-wall" style="position:fixed;bottom:120px;left:50%;transform:translateX(-50%);z-index:1001;" class="btn btn-action">📌 Fixar Anúncio Aqui</button>
+  
+    <!-- Canvas do Three.js vai aqui -->
+    <canvas id="ar-canvas" style="width:100%;height:100%;display:block;"></canvas>
+  
+    <div class="ar-controls">
+      <input type="text" id="ad-name" class="input-field" placeholder="Nome do Anúncio">
+      <input type="file" id="image-input" accept="image/*" class="input-field" onchange="handleImageUpload(event)">
       <div class="controls-grid">
-        <button class="btn-sm btn-disabled" id="btn-plus" onclick="adjustScale(0.05)">+ Aumentar</button>
-        <button class="btn-sm btn-disabled" id="btn-minus" onclick="adjustScale(-0.05)">- Reduzir</button>
+        <button class="btn-sm" onclick="adjustScale(0.1)">+ Aumentar</button>
+        <button class="btn-sm" onclick="adjustScale(-0.1)">- Reduzir</button>
       </div>
-
-      <div style="display: flex; gap: 8px; margin-top: 4px;">
-        <button class="btn btn-disabled" id="btn-save" style="width: 70%; padding: 10px; font-size: 14px;" onclick="saveAd()">Salvar Anúncio</button>
-        <button class="btn btn-secondary" style="width: 30%; padding: 10px; font-size: 14px;" onclick="showScreen('home-screen');">Voltar</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn" id="btn-save" style="width:70%;" onclick="saveAd()">Salvar Anúncio</button>
+        <button class="btn btn-secondary" style="width:30%;" onclick="showScreen('home-screen');">Voltar</button>
       </div>
     </div>
   </div>
+  
+  <script type="module">
+  import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+  import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/webxr/ARButton.js';
+  
+  let hitTestSource = null, hitTestSourceRequested = false;
+  let reticle, currentAdMesh, wallAnchor = null;
+  
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera();
+  const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('ar-canvas'), alpha: true, antialias: true });
+  renderer.xr.enabled = true;
+  
+  // Retículo que gruda na parede
+  reticle = new THREE.Mesh(
+    new THREE.RingGeometry(0.07, 0.09, 32).rotateX(-Math.PI/2),
+    new THREE.MeshBasicMaterial({ color: 0x38bdf8 })
+  );
+  reticle.visible = false;
+  scene.add(reticle);
+  
+  // Quando clicar em Fixar
+  document.getElementById('btn-lock-wall').onclick = () => {
+    if(reticle.visible){
+      wallAnchor = reticle.matrix.clone();
+      document.getElementById('status-text').innerText = "FIXADO! Agora escolhe a imagem.";
+      // Cria plano do anúncio na âncora
+      if(currentAdMesh) scene.add(currentAdMesh);
+    }
+  };
+  
+  renderer.setAnimationLoop((time, frame) => {
+    if(frame){
+      const refSpace = renderer.xr.getReferenceSpace();
+      const session = renderer.xr.getSession();
+      if(!hitTestSourceRequested){
+        session.requestReferenceSpace('viewer').then(ref => {
+          session.requestHitTestSource({ space: ref }).then(src => hitTestSource = src);
+        });
+        hitTestSourceRequested = true;
+      }
+      if(hitTestSource){
+        const hits = frame.getHitTestResults(hitTestSource);
+        if(hits.length > 0){
+          const hit = hits[0];
+          const pose = hit.getPose(refSpace);
+          reticle.visible = true;
+          reticle.matrix.fromArray(pose.transform.matrix);
+          reticle.matrix.decompose(reticle.position, reticle.quaternion, reticle.scale);
+          if(!wallAnchor && currentAdMesh){
+            currentAdMesh.position.copy(reticle.position);
+            currentAdMesh.quaternion.copy(reticle.quaternion);
+          }
+        }
+      }
+    }
+    renderer.render(scene, camera);
+  });
+  
+  // Adiciona botão AR nativo
+  document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
+  </script>
 
   <!-- TELA 3: MODO MUNDO (VISUALIZADOR) -->
   <div id="world-screen" class="screen">
