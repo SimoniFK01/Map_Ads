@@ -107,8 +107,8 @@
     let adScale = { width: 1.0, height: 0.6 };
     let currentImageData = "";
 
-    const BASE_USDZ_URL = "https://developer.apple.com/augmented-reality/quick-look/models/stratocaster/fender_stratocaster.usdz";
-
+    // Arquivo .USDZ homologado direto com ancoragem vertical (ar-placement=wall)
+    const BASE_USDZ_URL = "https://raw.githubusercontent.com/google/model-viewer/master/packages/shared-assets/models/poster.usdz";
 
     function showScreen(screenId) {
       document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -137,9 +137,10 @@
     }
 
     function testInAR() {
-      // Cria o acionamento direto do AR Quick Look do iOS
       const arLink = document.getElementById('ar-quicklook-link');
-      arLink.setAttribute('href', `${BASE_USDZ_URL}#allowsContentScaling=1&canonicalWebPageURL=${encodeURIComponent(window.location.href)}`);
+      // Adiciona o parâmetro ar-placement=wall no fragmento para forçar a detecção de parede no iOS
+      const quickLookUrl = `${BASE_USDZ_URL}#ar-placement=wall&allowsContentScaling=1`;
+      arLink.setAttribute('href', quickLookUrl);
       arLink.click();
     }
 
@@ -181,7 +182,7 @@
         item.style.maxWidth = "300px";
         item.innerHTML = `
           <h3>${ad.name}</h3>
-          <a rel="ar" href="${BASE_USDZ_URL}#allowsContentScaling=1" class="btn btn-world" style="display:inline-block; text-decoration:none;">
+          <a rel="ar" href="${BASE_USDZ_URL}#ar-placement=wall&allowsContentScaling=1" class="btn btn-world" style="display:inline-block; text-decoration:none;">
             📷 Abrir Câmera no iPhone
           </a>
         `;
