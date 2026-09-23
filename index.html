@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>Mapa Invisível - Anúncios AR (iOS Quick Look)</title>
   
+  <!-- Biblioteca Oficial do Model Viewer (Ativa o AR do iOS e Android nativamente) -->
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
   <style>
@@ -36,6 +38,14 @@
     .controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .btn-sm { padding: 10px; font-size: 14px; border-radius: 8px; border: none; background: #38bdf8; color: #0f172a; font-weight: bold; cursor: pointer; }
 
+    /* Model Viewer */
+    model-viewer {
+      width: 100%;
+      height: 250px;
+      background-color: #1e293b;
+      border-radius: 12px;
+    }
+
     /* Lista de QR Codes */
     #list-screen { padding: 20px; }
     .ad-card { background: #1e293b; border-radius: 12px; padding: 15px; margin-bottom: 15px; display: flex; flex-direction: column; align-items: center; gap: 12px; border: 1px solid #334155; }
@@ -61,9 +71,18 @@
       <input type="text" id="ad-name" class="input-field" placeholder="Nome do Anúncio (ex: Parede Loja)">
       <input type="file" id="image-input" accept="image/*" class="input-field" onchange="handleImageUpload(event)">
       
-      <div id="image-preview" class="preview-box">
-        <span id="preview-placeholder" style="color: #94a3b8; font-size: 14px;">Selecione uma imagem</span>
-      </div>
+      <!-- Componente Visualizador 3D/AR nativo -->
+      <model-viewer 
+        id="mv-preview"
+        src="https://raw.githubusercontent.com/google/model-viewer/master/packages/shared-assets/models/poster.glb"
+        ios-src="https://raw.githubusercontent.com/google/model-viewer/master/packages/shared-assets/models/poster.usdz"
+        ar
+        ar-modes="quick-look scene-viewer webxr"
+        ar-placement="wall"
+        camera-controls
+        touch-action="pan-y"
+        alt="Anúncio 3D para Parede">
+      </model-viewer>
 
       <p style="text-align:center; font-size:13px; color:#38bdf8; margin:0;">Ajustar Tamanho (Metros):</p>
       <div class="controls-grid">
@@ -75,12 +94,7 @@
         Tamanho: 1.00m x 0.60m
       </div>
 
-      <!-- LINK NATIVO PARA O QUICK LOOK NO iOS -->
-      <a id="ar-quicklook-link" rel="ar" href="#" style="display:none;">
-        <img id="ar-quicklook-img" src="" style="display:none;">
-      </a>
-
-      <button class="btn btn-action" style="width:100%;" onclick="testInAR()">📷 Testar Câmera na Parede</button>
+      <button class="btn btn-action" style="width:100%;" onclick="openARDirectly()">📷 Testar Câmera na Parede</button>
       <button class="btn" style="width:100%;" onclick="saveAd()">Salvar Anúncio</button>
       <button class="btn btn-secondary" style="width:100%;" onclick="showScreen('home-screen');">Voltar</button>
     </div>
@@ -89,7 +103,7 @@
   <!-- TELA 3: MODO MUNDO (VISUALIZADOR AR) -->
   <div id="world-screen" class="screen" style="align-items:center; justify-content:center; padding:20px; text-align:center;">
     <h2>Modo Mundo AR</h2>
-    <p>Para visualizar a parede no iPhone, acione o AR Quick Look abaixo:</p>
+    <p>Para visualizar a parede no iPhone, clique no botão abaixo:</p>
     
     <div id="world-ad-container" style="width:100%; display:flex; flex-direction:column; align-items:center; gap:15px;"></div>
     
@@ -107,9 +121,6 @@
     let adScale = { width: 1.0, height: 0.6 };
     let currentImageData = "";
 
-    // Arquivo .USDZ homologado direto com ancoragem vertical (ar-placement=wall)
-    const BASE_USDZ_URL = "https://raw.githubusercontent.com/google/model-viewer/master/packages/shared-assets/models/poster.usdz";
-
     function showScreen(screenId) {
       document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
       document.getElementById(screenId).classList.add('active');
@@ -121,9 +132,6 @@
         const reader = new FileReader();
         reader.onload = function(e) {
           currentImageData = e.target.result;
-          const box = document.getElementById('image-preview');
-          box.style.backgroundImage = `url(${currentImageData})`;
-          document.getElementById('preview-placeholder').style.display = 'none';
         };
         reader.readAsDataURL(file);
       }
@@ -136,18 +144,18 @@
       document.getElementById('scale-display').innerText = `Tamanho: ${adScale.width}m x ${adScale.height}m`;
     }
 
-    function testInAR() {
-      const arLink = document.getElementById('ar-quicklook-link');
-      // Adiciona o parâmetro ar-placement=wall no fragmento para forçar a detecção de parede no iOS
-      const quickLookUrl = `${BASE_USDZ_URL}#ar-placement=wall&allowsContentScaling=1`;
-      arLink.setAttribute('href', quickLookUrl);
-      arLink.click();
+    function openARDirectly() {
+      const mv = document.getElementById('mv-preview');
+      if (mv && mv.activateAR) {
+        mv.activateAR();
+      } else {
+        alert("O seu navegador não suporta AR nativa ou está carregando as bibliotecas.");
+      }
     }
 
     function saveAd() {
       const name = document.getElementById('ad-name').value;
       if (!name) return alert("Digite o nome do anúncio!");
-      if (!currentImageData) return alert("Selecione uma imagem!");
 
       const newAd = {
         id: Date.now(),
@@ -182,9 +190,15 @@
         item.style.maxWidth = "300px";
         item.innerHTML = `
           <h3>${ad.name}</h3>
-          <a rel="ar" href="${BASE_USDZ_URL}#ar-placement=wall&allowsContentScaling=1" class="btn btn-world" style="display:inline-block; text-decoration:none;">
-            📷 Abrir Câmera no iPhone
-          </a>
+          <model-viewer 
+            src="https://raw.githubusercontent.com/google/model-viewer/master/packages/shared-assets/models/poster.glb"
+            ios-src="https://raw.githubusercontent.com/google/model-viewer/master/packages/shared-assets/models/poster.usdz"
+            ar
+            ar-modes="quick-look scene-viewer webxr"
+            ar-placement="wall"
+            camera-controls
+            style="height:200px;">
+          </model-viewer>
         `;
         container.appendChild(item);
       });
